@@ -1,15 +1,32 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ArrowRightLeft, FileText } from 'lucide-react';
+import { Package, ArrowRightLeft, FileText, Users, Sofa } from 'lucide-react';
 import { useInventory } from '@/hooks/useInventory';
 import { MaterialForm } from '@/components/inventory/MaterialForm';
 import { MaterialsTable } from '@/components/inventory/MaterialsTable';
 import { StockLogForm } from '@/components/inventory/StockLogForm';
 import { TransactionsTable } from '@/components/inventory/TransactionsTable';
 import { ReportsPanel } from '@/components/inventory/ReportsPanel';
+import { WorkersPanel } from '@/components/inventory/WorkersPanel';
+import { SofaModelsPanel } from '@/components/inventory/SofaModelsPanel';
 
 const Index = () => {
-  const { materials, transactions, addMaterial, updateMaterial, deleteMaterial, logStock } = useInventory();
+  const { 
+    materials, 
+    transactions, 
+    workers,
+    sofaModels,
+    addMaterial, 
+    updateMaterial, 
+    deleteMaterial, 
+    addWorker,
+    updateWorker,
+    deleteWorker,
+    addSofaModel,
+    updateSofaModel,
+    deleteSofaModel,
+    logStock 
+  } = useInventory();
 
   const lowStockCount = materials.filter(m => m.quantity <= m.minStock).length;
   const totalValue = materials.reduce((sum, m) => sum + m.quantity * m.costPerUnit, 0);
@@ -24,7 +41,7 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        <div className="grid gap-4 md:grid-cols-3 mb-6">
+        <div className="grid gap-4 md:grid-cols-4 mb-6">
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total Materials</CardDescription>
@@ -43,6 +60,12 @@ const Index = () => {
               <CardTitle className="text-3xl">${totalValue.toFixed(2)}</CardTitle>
             </CardHeader>
           </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Workers</CardDescription>
+              <CardTitle className="text-3xl">{workers.length}</CardTitle>
+            </CardHeader>
+          </Card>
         </div>
 
         <Tabs defaultValue="materials" className="space-y-4">
@@ -59,13 +82,29 @@ const Index = () => {
               <FileText className="h-4 w-4" />
               Reports
             </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2">
+              <Users className="h-4 w-4" />
+              Settings
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="materials" className="space-y-4">
             <div className="flex gap-2">
               <MaterialForm onSubmit={addMaterial} />
-              <StockLogForm materials={materials} onSubmit={logStock} defaultType="in" />
-              <StockLogForm materials={materials} onSubmit={logStock} defaultType="out" />
+              <StockLogForm 
+                materials={materials} 
+                workers={workers}
+                sofaModels={sofaModels}
+                onSubmit={logStock} 
+                defaultType="in" 
+              />
+              <StockLogForm 
+                materials={materials} 
+                workers={workers}
+                sofaModels={sofaModels}
+                onSubmit={logStock} 
+                defaultType="out" 
+              />
             </div>
             <MaterialsTable 
               materials={materials} 
@@ -76,14 +115,43 @@ const Index = () => {
 
           <TabsContent value="transactions">
             <div className="flex gap-2 mb-4">
-              <StockLogForm materials={materials} onSubmit={logStock} defaultType="in" />
-              <StockLogForm materials={materials} onSubmit={logStock} defaultType="out" />
+              <StockLogForm 
+                materials={materials} 
+                workers={workers}
+                sofaModels={sofaModels}
+                onSubmit={logStock} 
+                defaultType="in" 
+              />
+              <StockLogForm 
+                materials={materials} 
+                workers={workers}
+                sofaModels={sofaModels}
+                onSubmit={logStock} 
+                defaultType="out" 
+              />
             </div>
             <TransactionsTable transactions={transactions} />
           </TabsContent>
 
           <TabsContent value="reports">
             <ReportsPanel materials={materials} transactions={transactions} />
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <WorkersPanel 
+                workers={workers}
+                onAdd={addWorker}
+                onUpdate={updateWorker}
+                onDelete={deleteWorker}
+              />
+              <SofaModelsPanel 
+                sofaModels={sofaModels}
+                onAdd={addSofaModel}
+                onUpdate={updateSofaModel}
+                onDelete={deleteSofaModel}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </main>
