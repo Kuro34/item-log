@@ -11,6 +11,18 @@ export interface RawMaterial {
   updatedAt: string;
 }
 
+export interface Worker {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface SofaModel {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
 export interface StockTransaction {
   id: string;
   materialId: string;
@@ -20,6 +32,10 @@ export interface StockTransaction {
   notes: string;
   date: string;
   createdAt: string;
+  workerId?: string;
+  workerName?: string;
+  sofaModelId?: string;
+  sofaModelName?: string;
 }
 
 export type ReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
