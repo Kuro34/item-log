@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,22 +15,45 @@ interface MaterialFormProps {
 export function MaterialForm({ onSubmit, initialData, trigger }: MaterialFormProps) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
-    name: initialData?.name || '',
-    category: initialData?.category || '',
-    unit: initialData?.unit || '',
-    quantity: initialData?.quantity || 0,
-    minStock: initialData?.minStock || 0,
-    costPerUnit: initialData?.costPerUnit || 0,
-    supplier: initialData?.supplier || '',
+    name: '',
+    category: '',
+    unit: '',
+    quantity: 0,
+    minStock: 0,
+    costPerUnit: 0,
+    supplier: '',
   });
+
+  // Update form data when editingMaterial changes
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        name: initialData.name,
+        category: initialData.category,
+        unit: initialData.unit,
+        quantity: initialData.quantity,
+        minStock: initialData.minStock || 0,
+        costPerUnit: initialData.costPerUnit || 0,
+        supplier: initialData.supplier || '',
+      });
+      setOpen(true); // auto-open dialog when editing
+    } else {
+      setFormData({
+        name: '',
+        category: '',
+        unit: '',
+        quantity: 0,
+        minStock: 0,
+        costPerUnit: 0,
+        supplier: '',
+      });
+    }
+  }, [initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
     setOpen(false);
-    if (!initialData) {
-      setFormData({ name: '', category: '', unit: '', quantity: 0, minStock: 0, costPerUnit: 0, supplier: '' });
-    }
   };
 
   return (
@@ -43,10 +66,12 @@ export function MaterialForm({ onSubmit, initialData, trigger }: MaterialFormPro
           </Button>
         )}
       </DialogTrigger>
+
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{initialData ? 'Edit Material' : 'Add New Material'}</DialogTitle>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -58,6 +83,7 @@ export function MaterialForm({ onSubmit, initialData, trigger }: MaterialFormPro
                 required
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
               <Input
@@ -67,6 +93,7 @@ export function MaterialForm({ onSubmit, initialData, trigger }: MaterialFormPro
                 required
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="unit">Unit (kg, pcs, etc.)</Label>
               <Input
@@ -76,6 +103,7 @@ export function MaterialForm({ onSubmit, initialData, trigger }: MaterialFormPro
                 required
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="quantity">Initial Quantity</Label>
               <Input
@@ -87,6 +115,7 @@ export function MaterialForm({ onSubmit, initialData, trigger }: MaterialFormPro
                 required
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="minStock">Min Stock Alert</Label>
               <Input
@@ -97,6 +126,7 @@ export function MaterialForm({ onSubmit, initialData, trigger }: MaterialFormPro
                 onChange={(e) => setFormData({ ...formData, minStock: Number(e.target.value) })}
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="costPerUnit">Cost Per Unit</Label>
               <Input
@@ -108,6 +138,7 @@ export function MaterialForm({ onSubmit, initialData, trigger }: MaterialFormPro
                 onChange={(e) => setFormData({ ...formData, costPerUnit: Number(e.target.value) })}
               />
             </div>
+
             <div className="col-span-2 space-y-2">
               <Label htmlFor="supplier">Supplier</Label>
               <Input
@@ -117,9 +148,23 @@ export function MaterialForm({ onSubmit, initialData, trigger }: MaterialFormPro
               />
             </div>
           </div>
-          <Button type="submit" className="w-full">
-            {initialData ? 'Update Material' : 'Add Material'}
-          </Button>
+
+          <div className="flex gap-2">
+            <Button type="submit" className="flex-1">
+              {initialData ? 'Update Material' : 'Add Material'}
+            </Button>
+
+            {initialData && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setOpen(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
         </form>
       </DialogContent>
     </Dialog>

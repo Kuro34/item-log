@@ -1,27 +1,36 @@
+// src/hooks/useInventory.ts
 import { useState, useEffect } from 'react';
-import { RawMaterial, StockTransaction, Worker, SofaModel } from '@/types/inventory';
+import { RawMaterial, StockTransaction, Employee, SofaModel, Receipt, ReceiptItem, PettyCashItem } from '@/types/inventory';
 
 const MATERIALS_KEY = 'inventory_materials';
 const TRANSACTIONS_KEY = 'inventory_transactions';
 const WORKERS_KEY = 'inventory_workers';
 const SOFA_MODELS_KEY = 'inventory_sofa_models';
+const RECEIPTS_KEY = 'inventory_receipts';
+
+// Re-export types for backward compatibility
+export type { ReceiptItem, Receipt };
+export type { PettyCashItem };
 
 export function useInventory() {
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
-  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [workers, setWorkers] = useState<Employee[]>([]);
   const [sofaModels, setSofaModels] = useState<SofaModel[]>([]);
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
 
   useEffect(() => {
-    const savedMaterials = localStorage.getItem(MATERIALS_KEY);
+    const savedMaterials   = localStorage.getItem(MATERIALS_KEY);
     const savedTransactions = localStorage.getItem(TRANSACTIONS_KEY);
-    const savedWorkers = localStorage.getItem(WORKERS_KEY);
-    const savedSofaModels = localStorage.getItem(SOFA_MODELS_KEY);
-    
-    if (savedMaterials) setMaterials(JSON.parse(savedMaterials));
+    const savedWorkers     = localStorage.getItem(WORKERS_KEY);
+    const savedSofaModels  = localStorage.getItem(SOFA_MODELS_KEY);
+    const savedReceipts    = localStorage.getItem(RECEIPTS_KEY);
+
+    if (savedMaterials)   setMaterials(JSON.parse(savedMaterials));
     if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
-    if (savedWorkers) setWorkers(JSON.parse(savedWorkers));
-    if (savedSofaModels) setSofaModels(JSON.parse(savedSofaModels));
+    if (savedWorkers)     setWorkers(JSON.parse(savedWorkers));
+    if (savedSofaModels)  setSofaModels(JSON.parse(savedSofaModels));
+    if (savedReceipts)    setReceipts(JSON.parse(savedReceipts));
   }, []);
 
   const saveMaterials = (newMaterials: RawMaterial[]) => {
@@ -34,7 +43,7 @@ export function useInventory() {
     localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(newTransactions));
   };
 
-  const saveWorkers = (newWorkers: Worker[]) => {
+  const saveWorkers = (newWorkers: Employee[]) => {
     setWorkers(newWorkers);
     localStorage.setItem(WORKERS_KEY, JSON.stringify(newWorkers));
   };
@@ -43,6 +52,15 @@ export function useInventory() {
     setSofaModels(newSofaModels);
     localStorage.setItem(SOFA_MODELS_KEY, JSON.stringify(newSofaModels));
   };
+
+  const saveReceipts = (newReceipts: Receipt[]) => {
+    setReceipts(newReceipts);
+    localStorage.setItem(RECEIPTS_KEY, JSON.stringify(newReceipts));
+  };
+
+  // ──────────────────────────────────────────────
+  // Material CRUD
+  // ──────────────────────────────────────────────
 
   const addMaterial = (material: Omit<RawMaterial, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newMaterial: RawMaterial = {
@@ -65,9 +83,12 @@ export function useInventory() {
     saveMaterials(materials.filter(m => m.id !== id));
   };
 
-  // Workers CRUD
+  // ──────────────────────────────────────────────
+  // Worker & Sofa Model CRUD
+  // ──────────────────────────────────────────────
+
   const addWorker = (name: string) => {
-    const newWorker: Worker = {
+    const newWorker: Employee = {
       id: crypto.randomUUID(),
       name,
       createdAt: new Date().toISOString(),
@@ -83,7 +104,6 @@ export function useInventory() {
     saveWorkers(workers.filter(w => w.id !== id));
   };
 
-  // Sofa Models CRUD
   const addSofaModel = (name: string) => {
     const newModel: SofaModel = {
       id: crypto.randomUUID(),
@@ -101,41 +121,196 @@ export function useInventory() {
     saveSofaModels(sofaModels.filter(m => m.id !== id));
   };
 
+  // ──────────────────────────────────────────────
+  // Stock logging (batch support)
+  // ──────────────────────────────────────────────
+
   const logStock = (
-    materialId: string, 
-    type: 'in' | 'out', 
-    quantity: number, 
-    notes: string,
-    workerId?: string,
-    sofaModelId?: string
+    items: Array<{
+      materialId: string;
+      quantity: number;
+      workerId?: string;
+      sofaModelId?: string;
+    }>,
+    type: 'in' | 'out',
+    notes: number = 0,
+    customDate?: string | Date
   ) => {
-    const material = materials.find(m => m.id === materialId);
+    if (items.length === 0) return;
+
+    const transactionDate = customDate
+      ? new Date(customDate).toISOString()
+      : new Date().toISOString();
+
+    const newTransactions: StockTransaction[] = [];
+    const materialUpdates: Record<string, number> = {};
+
+    items.forEach(({ materialId, quantity, workerId, sofaModelId }, index) => {
+      const material = materials.find(m => m.id === materialId);
+      if (!material) return;
+
+      const worker = workerId ? workers.find(w => w.id === workerId) : undefined;
+      const sofaModel = sofaModelId ? sofaModels.find(s => s.id === sofaModelId) : undefined;
+
+      const transaction: StockTransaction = {
+        id: crypto.randomUUID(),
+        materialId,
+        materialName: material.name,
+        type,
+        quantity,
+        notes: index === 0 ? notes : undefined,
+        date: transactionDate,
+        createdAt: new Date().toISOString(),
+        workerId,
+        workerName: worker?.name,
+        sofaModelId,
+        sofaModelName: sofaModel?.name,
+      };
+
+      newTransactions.push(transaction);
+
+      materialUpdates[materialId] = (materialUpdates[materialId] || 0) +
+        (type === 'in' ? quantity : -quantity);
+    });
+
+    if (newTransactions.length === 0) return;
+
+    const updatedMaterials = materials.map(m => {
+      const delta = materialUpdates[m.id];
+      if (delta === undefined) return m;
+      return {
+        ...m,
+        quantity: Math.max(0, m.quantity + delta),
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    saveTransactions([...transactions, ...newTransactions]);
+    saveMaterials(updatedMaterials);
+  };
+
+  const deleteTransactionWithRollback = (transactionId: string) => {
+    const tx = transactions.find(t => t.id === transactionId);
+    if (!tx) return;
+
+    const material = materials.find(m => m.id === tx.materialId);
     if (!material) return;
 
-    const worker = workerId ? workers.find(w => w.id === workerId) : undefined;
-    const sofaModel = sofaModelId ? sofaModels.find(s => s.id === sofaModelId) : undefined;
+    const rollbackQty = tx.type === 'in' ? -tx.quantity : tx.quantity;
 
-    const transaction: StockTransaction = {
+    const updatedMaterials = materials.map(m =>
+      m.id === material.id
+        ? { ...m, quantity: Math.max(0, m.quantity + rollbackQty), updatedAt: new Date().toISOString() }
+        : m
+    );
+
+    const updatedTransactions = transactions.filter(t => t.id !== transactionId);
+
+    saveMaterials(updatedMaterials);
+    saveTransactions(updatedTransactions);
+  };
+
+  const updateTransaction = (
+    transactionId: string,
+    updates: Partial<StockTransaction> & { quantity?: number; type?: 'in' | 'out' }
+  ) => {
+    const tx = transactions.find(t => t.id === transactionId);
+    if (!tx) return;
+
+    const material = materials.find(m => m.id === tx.materialId);
+    if (!material) return;
+
+    const oldRollback = tx.type === 'in' ? -tx.quantity : tx.quantity;
+    let newMaterialQty = material.quantity + oldRollback;
+
+    const newType = updates.type ?? tx.type;
+    const newQty = updates.quantity ?? tx.quantity;
+    newMaterialQty += newType === 'in' ? newQty : -newQty;
+
+    const updatedMaterials = materials.map(m =>
+      m.id === material.id
+        ? { ...m, quantity: Math.max(0, newMaterialQty), updatedAt: new Date().toISOString() }
+        : m
+    );
+
+    const updatedTransactions = transactions.map(t =>
+      t.id === transactionId
+        ? { ...t, ...updates, date: updates.date ? new Date(updates.date).toISOString() : t.date }
+        : t
+    );
+
+    saveMaterials(updatedMaterials);
+    saveTransactions(updatedTransactions);
+  };
+
+  // ──────────────────────────────────────────────
+  // Receipt management
+  // ──────────────────────────────────────────────
+
+  const addReceipt = (receiptData: Omit<Receipt, 'id' | 'createdAt'>) => {
+    const newReceipt: Receipt = {
+      ...receiptData,
       id: crypto.randomUUID(),
-      materialId,
-      materialName: material.name,
-      type,
-      quantity,
-      notes,
-      date: new Date().toISOString(),
       createdAt: new Date().toISOString(),
-      workerId,
-      workerName: worker?.name,
-      sofaModelId,
-      sofaModelName: sofaModel?.name,
     };
+    saveReceipts([...receipts, newReceipt]);
+  };
 
-    const newQuantity = type === 'in' 
-      ? material.quantity + quantity 
-      : material.quantity - quantity;
+  const deleteReceipt = (id: string) => {
+    saveReceipts(receipts.filter(r => r.id !== id));
+  };
 
-    updateMaterial(materialId, { quantity: Math.max(0, newQuantity) });
-    saveTransactions([transaction, ...transactions]);
+  const editTransaction = (
+    transactionId: string,
+    newValues: Partial<StockTransaction> & {
+      quantity?: number;
+      type?: 'in' | 'out';
+      notes?: number;
+      workerId?: string;
+      sofaModelId?: string;
+      date?: string | Date;
+    }
+  ) => {
+    const tx = transactions.find(t => t.id === transactionId);
+    if (!tx) {
+      console.warn('Transaction not found');
+      return;
+    }
+
+    const material = materials.find(m => m.id === tx.materialId);
+    if (!material) {
+      console.warn('Material not found');
+      return;
+    }
+
+    // Rollback old effect
+    const oldDelta = tx.type === 'in' ? -tx.quantity : tx.quantity;
+    let updatedQty = material.quantity + oldDelta;
+
+    // Apply new values
+    const newType = newValues.type ?? tx.type;
+    const newQuantity = newValues.quantity ?? tx.quantity;
+    const newDelta = newType === 'in' ? newQuantity : -newQuantity;
+    updatedQty += newDelta;
+
+    const updatedMaterials = materials.map(m =>
+      m.id === material.id
+        ? { ...m, quantity: Math.max(0, updatedQty), updatedAt: new Date().toISOString() }
+        : m
+    );
+
+    const updatedTransactions = transactions.map(t =>
+      t.id === transactionId
+        ? {
+            ...t,
+            ...newValues,
+            date: newValues.date ? new Date(newValues.date).toISOString() : t.date,
+          }
+        : t
+    );
+
+    saveMaterials(updatedMaterials);
+    saveTransactions(updatedTransactions);
   };
 
   return {
@@ -143,6 +318,7 @@ export function useInventory() {
     transactions,
     workers,
     sofaModels,
+    receipts,
     addMaterial,
     updateMaterial,
     deleteMaterial,
@@ -153,5 +329,10 @@ export function useInventory() {
     updateSofaModel,
     deleteSofaModel,
     logStock,
+    deleteTransactionWithRollback,
+    updateTransaction,
+    addReceipt,
+    deleteReceipt,
+    editTransaction,
   };
 }

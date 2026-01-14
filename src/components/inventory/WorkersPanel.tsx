@@ -4,10 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
-import { Worker } from '@/types/inventory';
+import { Employee } from '@/types/inventory';
 
 interface WorkersPanelProps {
-  workers: Worker[];
+  workers: Employee[];
   onAdd: (name: string) => void;
   onUpdate: (id: string, name: string) => void;
   onDelete: (id: string) => void;
@@ -25,7 +25,7 @@ export function WorkersPanel({ workers, onAdd, onUpdate, onDelete }: WorkersPane
     }
   };
 
-  const startEdit = (worker: Worker) => {
+  const startEdit = (worker: Employee) => {
     setEditingId(worker.id);
     setEditName(worker.name);
   };
