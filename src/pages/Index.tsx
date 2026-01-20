@@ -1,7 +1,9 @@
+// src/pages/Index.tsx
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ArrowRightLeft, FileText, Users } from 'lucide-react';
+import { Package, ArrowRightLeft, FileText, Users, ShoppingCart } from 'lucide-react';
 import { useInventory } from '@/hooks/useInventory';
+import { useSales } from '@/hooks/useSales';
 import { MaterialForm } from '@/components/inventory/MaterialForm';
 import MaterialsTable from '@/components/inventory/MaterialsTable';
 import { StockLogForm } from '@/components/inventory/StockLogForm';
@@ -12,6 +14,9 @@ import { ReportsPanel } from '@/components/inventory/ReportsPanel';
 import { WorkersPanel } from '@/components/inventory/WorkersPanel';
 import { SofaModelsPanel } from '@/components/inventory/SofaModelsPanel';
 import { ReceiptsReport } from '@/components/inventory/ReceiptsReport';
+import { SalesForm } from '@/components/sales/SalesForm';
+import { CustomersPanel } from '@/components/sales/CustomersPanel';
+import SalesReport from '@/components/sales/SalesReport';
 import { useState } from 'react';
 import { RawMaterial } from '@/types/inventory';
 
@@ -36,6 +41,20 @@ const Index = () => {
     editTransaction,
   } = useInventory();
 
+  const {
+    customers,
+    sales,
+    payments,
+    addCustomer,
+    updateCustomer,
+    deleteCustomer,
+    addSale,
+    updateSale,
+    deleteSale,
+    addPayment,
+    deletePayment,
+  } = useSales();
+
   const lowStockCount = materials.filter(m => m.quantity <= m.minStock).length;
   const totalValue = materials.reduce((sum, m) => sum + m.quantity * m.costPerUnit, 0);
   
@@ -50,6 +69,11 @@ const Index = () => {
   
   const totalExpenses = stockInExpenses + pettyCashExpenses;
 
+  // Calculate sales metrics
+  const totalSalesRevenue = sales.reduce((sum, s) => sum + s.total, 0);
+  const totalSalesReceived = sales.reduce((sum, s) => sum + s.amountPaid, 0);
+  const pendingSales = sales.filter(s => s.paymentStatus !== 'paid').length;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [sortCategory, setSortCategory] = useState('');
   const [editingMaterial, setEditingMaterial] = useState<RawMaterial | null>(null);
@@ -58,13 +82,13 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold">JJB Materials Inventory</h1>
-          <p className="text-muted-foreground">Manage your inventory, track stock movements, and generate reports</p>
+          <h1 className="text-2xl font-bold">JJB Materials Inventory & Sales</h1>
+          <p className="text-muted-foreground">Manage inventory, track stock, sales, and generate reports</p>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        <div className="grid gap-4 md:grid-cols-4 mb-6">
+        <div className="grid gap-4 md:grid-cols-5 mb-6">
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total Materials</CardDescription>
@@ -79,8 +103,8 @@ const Index = () => {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Inventory Value</CardDescription>
-              <CardTitle className="text-3xl">
+              <CardDescription>Inventory Value</CardDescription>
+              <CardTitle className="text-2xl">
                 ₱ {totalValue.toLocaleString('en-PH', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2
@@ -90,13 +114,19 @@ const Index = () => {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Expenses</CardDescription>
-              <CardTitle className="text-3xl text-amber-600">
-                ₱ {totalExpenses.toLocaleString('en-PH', {
+              <CardDescription>Total Sales</CardDescription>
+              <CardTitle className="text-2xl text-green-600">
+                ₱ {totalSalesRevenue.toLocaleString('en-PH', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2
                 })}
               </CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Pending Sales</CardDescription>
+              <CardTitle className="text-3xl text-orange-600">{pendingSales}</CardTitle>
             </CardHeader>
           </Card>
         </div>
@@ -114,6 +144,9 @@ const Index = () => {
             </TabsTrigger>
             <TabsTrigger value="receipts" className="gap-2">
               <FileText className="h-4 w-4" /> Receipts & Expenses
+            </TabsTrigger>
+            <TabsTrigger value="sales" className="gap-2">
+              <ShoppingCart className="h-4 w-4" /> Sales
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2">
               <Users className="h-4 w-4" /> Settings
@@ -163,7 +196,6 @@ const Index = () => {
                 type="out" 
               />
 
-              {/* NEW: Petty Cash Voucher Button */}
               <PettyCashVoucherForm />
             </div>
 
@@ -220,6 +252,40 @@ const Index = () => {
             <ReceiptsReport />
           </TabsContent>
 
+          <TabsContent value="sales" className="space-y-6">
+            <div className="flex flex-wrap gap-3">
+              <SalesForm
+                customers={customers}
+                sofaModels={sofaModels}
+                materials={materials}
+                onSubmit={(saleData) => {
+                  // Add sale and handle material inventory reduction
+                  addSale(saleData, (materialUpdates) => {
+                    // Update material quantities
+                    materialUpdates.forEach(({ id, quantityChange }) => {
+                      const material = materials.find(m => m.id === id);
+                      if (material) {
+                        const newQuantity = Math.max(0, material.quantity + quantityChange);
+                        updateMaterial(id, { 
+                          quantity: newQuantity,
+                          updatedAt: new Date().toISOString() 
+                        });
+                      }
+                    });
+                  });
+                }}
+              />
+            </div>
+
+            <SalesReport
+              sales={sales}
+              payments={payments}
+              onDelete={deleteSale}
+              onAddPayment={addPayment}
+              onDeletePayment={deletePayment}
+            />
+          </TabsContent>
+
           <TabsContent value="settings" className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
               <WorkersPanel 
@@ -235,6 +301,13 @@ const Index = () => {
                 onDelete={deleteSofaModel}
               />
             </div>
+
+            <CustomersPanel
+              customers={customers}
+              onAdd={addCustomer}
+              onUpdate={updateCustomer}
+              onDelete={deleteCustomer}
+            />
           </TabsContent>
         </Tabs>
       </main>

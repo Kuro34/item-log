@@ -32,7 +32,6 @@ import {
   startOfMonth,
   startOfYear,
   addDays,
-  addWeeks,
   addMonths,
   addYears,
   isAfter,
@@ -62,14 +61,12 @@ export function ReportsPanel({
   const [editingTx, setEditingTx] = useState<StockTransaction | null>(null);
 
   const reportRef = useRef<HTMLDivElement>(null);
-  const stockInRef = useRef<HTMLDivElement>(null);
-  const stockOutRef = useRef<HTMLDivElement>(null);
 
   /* -------------------- Custom week helpers (month-based, Mon start, up to week 5) -------------------- */
 
   function getFirstMondayOfMonth(date: Date): Date {
     const first = startOfMonth(date);
-    const weekday = first.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    const weekday = first.getDay();
     const daysToMonday = weekday === 1 ? 0 : (weekday === 0 ? 1 : 8 - weekday);
     return addDays(first, daysToMonday);
   }
@@ -78,7 +75,6 @@ export function ReportsPanel({
     const target = startOfDay(date);
     const firstMonday = getFirstMondayOfMonth(target);
 
-    // Everything from the 1st up to and including the first Monday → week 1
     if (isBefore(target, firstMonday) || isSameDay(target, firstMonday)) {
       return 1;
     }
@@ -98,7 +94,6 @@ export function ReportsPanel({
   }
 
   function getMonthWeekEnd(date: Date): Date {
-    // Exclusive end (next Monday 00:00)
     return addDays(getMonthWeekStart(date), 7);
   }
 
@@ -136,10 +131,6 @@ export function ReportsPanel({
 
   const totalIn = stockIn.reduce((sum, tx) => sum + tx.quantity, 0);
   const totalOut = stockOut.reduce((sum, tx) => sum + tx.quantity, 0);
-  const totalInventoryValue = materials.reduce(
-    (sum, m) => sum + m.quantity * m.costPerUnit,
-    0
-  );
 
   const totalSofas = filteredTransactions.reduce((sum, tx) => {
     if (!tx.notes) return sum;
@@ -205,7 +196,7 @@ export function ReportsPanel({
         return format(periodStart, 'PPP');
       case 'weekly': {
         const wStart = getMonthWeekStart(periodStart);
-        const wEnd = addDays(wStart, 6); // inclusive Sunday
+        const wEnd = addDays(wStart, 6);
         const weekNum = getMonthWeekNumber(periodStart);
         return `Week ${weekNum} (${format(wStart, 'MMM dd')} - ${format(wEnd, 'MMM dd')})`;
       }
@@ -287,7 +278,7 @@ export function ReportsPanel({
               <th>Material</th>
               <th class="text-right">Quantity</th>
               <th>Worker</th>
-              <th>Sofa Model</th>
+              <th>Sofa Details</th>
               <th>Sofa Made</th>
             </tr>
           </thead>
@@ -298,7 +289,7 @@ export function ReportsPanel({
                 <td>${tx.materialName}</td>
                 <td class="text-right">${tx.quantity}</td>
                 <td>${tx.workerName || '-'}</td>
-                <td>${tx.sofaModelName || '-'}</td>
+                <td>${tx.sofaDetails || tx.sofaModelName || '-'}</td>
                 <td>${tx.notes || '-'}</td>
               </tr>
             `).join('')}
@@ -335,7 +326,7 @@ export function ReportsPanel({
               <th>Material</th>
               <th class="text-right">Quantity</th>
               <th>Worker</th>
-              <th>Sofa Model</th>
+              <th>Sofa Details</th>
               <th>Sofa Made</th>
             </tr>
           </thead>
@@ -346,7 +337,7 @@ export function ReportsPanel({
                 <td>${tx.materialName}</td>
                 <td class="text-right">${tx.quantity}</td>
                 <td>${tx.workerName || '-'}</td>
-                <td>${tx.sofaModelName || '-'}</td>
+                <td>${tx.sofaDetails || tx.sofaModelName || '-'}</td>
                 <td>${tx.notes || '-'}</td>
               </tr>
             `).join('')}
@@ -521,7 +512,7 @@ export function ReportsPanel({
                   <TableHead>Type</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
                   <TableHead>Worker</TableHead>
-                  <TableHead>Sofa Model</TableHead>
+                  <TableHead>Sofa Details</TableHead>
                   <TableHead>Sofa Made</TableHead>
                   {period === 'daily' && (
                     <TableHead className="text-right">Actions</TableHead>
@@ -551,7 +542,7 @@ export function ReportsPanel({
                       </TableCell>
                       <TableCell className="text-right font-mono">{tx.quantity}</TableCell>
                       <TableCell>{tx.workerName || '-'}</TableCell>
-                      <TableCell>{tx.sofaModelName || '-'}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{tx.sofaDetails || tx.sofaModelName || '-'}</TableCell>
                       <TableCell>{tx.notes || '-'}</TableCell>
 
                       {period === 'daily' && (

@@ -13,12 +13,17 @@ interface BatchItem {
   quantity: number;
 }
 
+interface SofaProduction {
+  sofaModelId: string;
+  quantity: number;
+}
+
 interface StockLogFormProps {
   materials: RawMaterial[];
   workers: Employee[];
   sofaModels: SofaModel[];
   onSubmit: (
-    items: Array<{ materialId: string; quantity: number; workerId?: string; sofaModelId?: string }>,
+    items: Array<{ materialId: string; quantity: number; workerId?: string; sofaModelId?: string; sofaDetails?: string }>,
     type: 'in' | 'out',
     notes: number,
     customDate?: string
@@ -38,7 +43,7 @@ export function StockLogForm({
   const [batchItems, setBatchItems] = useState<BatchItem[]>([{ materialId: '', quantity: 0 }]);
   const [notes, setNotes] = useState(0);
   const [workerId, setWorkerId] = useState('');
-  const [sofaModelId, setSofaModelId] = useState('');
+  const [sofaProductions, setSofaProductions] = useState<SofaProduction[]>([{ sofaModelId: '', quantity: 0 }]);
   const [transactionDate, setTransactionDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   const isOut = type === 'out';
@@ -60,10 +65,41 @@ export function StockLogForm({
     );
   };
 
+  const addSofaProduction = () => {
+    setSofaProductions(prev => [...prev, { sofaModelId: '', quantity: 0 }]);
+  };
+
+  const removeSofaProduction = (index: number) => {
+    if (sofaProductions.length === 1) return;
+    setSofaProductions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateSofaProduction = (index: number, field: 'sofaModelId' | 'quantity', value: string | number) => {
+    setSofaProductions(prev =>
+      prev.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      )
+    );
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     const customDate = transactionDate ? `${transactionDate}T12:00:00.000Z` : undefined;
+
+    // Calculate total sofas made from all productions
+    const totalSofasMade = sofaProductions
+      .filter(sp => sp.sofaModelId && sp.quantity > 0)
+      .reduce((sum, sp) => sum + sp.quantity, 0);
+
+    // Create detailed string with sofa production details
+    const sofaDetailsString = sofaProductions
+      .filter(sp => sp.sofaModelId && sp.quantity > 0)
+      .map(sp => {
+        const model = sofaModels.find(m => m.id === sp.sofaModelId);
+        return `${model?.name || 'Unknown'}: ${sp.quantity}`;
+      })
+      .join(' | ');
 
     const validItems = batchItems
       .filter(item => item.materialId && item.quantity > 0)
@@ -71,18 +107,20 @@ export function StockLogForm({
         materialId: item.materialId,
         quantity: item.quantity,
         workerId: isOut ? workerId || undefined : undefined,
-        sofaModelId: isOut ? sofaModelId || undefined : undefined,
+        sofaModelId: isOut ? undefined : undefined, // Don't set single model for multi-model production
+        sofaDetails: isOut && sofaDetailsString ? sofaDetailsString : undefined, // Store details string
       }));
 
     if (validItems.length === 0) return;
 
-    onSubmit(validItems, type, notes, customDate);
+    // Pass total sofas made as notes, or the original notes field if not stock out
+    onSubmit(validItems, type, isOut && totalSofasMade > 0 ? totalSofasMade : notes, customDate);
 
     setOpen(false);
     setBatchItems([{ materialId: '', quantity: 0 }]);
     setNotes(0);
     setWorkerId('');
-    setSofaModelId('');
+    setSofaProductions([{ sofaModelId: '', quantity: 0 }]);
     setTransactionDate(format(new Date(), 'yyyy-MM-dd'));
   };
 
@@ -147,7 +185,7 @@ export function StockLogForm({
 
             {/* Out-only shared fields */}
             {isOut && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Worker</Label>
                   <Select value={workerId} onValueChange={setWorkerId}>
@@ -162,34 +200,84 @@ export function StockLogForm({
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Sofa Model</Label>
-                  <Select value={sofaModelId} onValueChange={setSofaModelId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select model (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sofaModels.map(s => (
-                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* Sofa Production Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Sofa Models Produced</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={addSofaProduction}>
+                      <Plus className="h-4 w-4 mr-2" /> Add Model
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3 max-h-[30vh] overflow-y-auto pr-2 border rounded-md p-3 bg-blue-50/50">
+                    {sofaProductions.map((production, index) => (
+                      <div key={index} className="grid grid-cols-12 gap-3 items-end border-b pb-3 last:border-b-0 bg-white rounded p-2">
+                        <div className="col-span-7 space-y-1">
+                          <Label className="text-xs">Sofa Model</Label>
+                          <Select
+                            value={production.sofaModelId}
+                            onValueChange={v => updateSofaProduction(index, 'sofaModelId', v)}
+                          >
+                            <SelectTrigger className="text-sm">
+                              <SelectValue placeholder="Select model" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sofaModels.map(s => (
+                                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="col-span-3 space-y-1">
+                          <Label className="text-xs">Quantity</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={production.quantity || ''}
+                            onChange={e => updateSofaProduction(index, 'quantity', Number(e.target.value))}
+                            placeholder="0"
+                            className="text-sm"
+                          />
+                        </div>
+
+                        <div className="col-span-2 flex justify-end">
+                          {sofaProductions.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeSofaProduction(index)}
+                            >
+                              <Trash className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+                    Total sofas: <strong>{sofaProductions.reduce((sum, sp) => sum + (sp.quantity || 0), 0)}</strong>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Remark / Sofa qty */}
-            <div className="space-y-2">
-              <Label htmlFor="notes">Sofa Quantity / Remark</Label>
-              <Input
-                id="notes"
-                type="number"
-                min="0"
-                value={notes}
-                onChange={e => setNotes(Number(e.target.value))}
-                placeholder={isOut ? "Number of sofas made" : "Optional remark"}
-              />
-            </div>
+            {/* Remark / Sofa qty - only show for Stock In */}
+            {!isOut && (
+              <div className="space-y-2">
+                <Label htmlFor="notes">Remark (optional)</Label>
+                <Input
+                  id="notes"
+                  type="number"
+                  min="0"
+                  value={notes}
+                  onChange={e => setNotes(Number(e.target.value))}
+                  placeholder="Optional remark"
+                />
+              </div>
+            )}
 
             {/* Items input */}
             {isOut ? (

@@ -122,7 +122,7 @@ export function useInventory() {
   };
 
   // ──────────────────────────────────────────────
-  // Stock logging (batch support)
+  // Stock logging (batch support with sofaDetails)
   // ──────────────────────────────────────────────
 
   const logStock = (
@@ -131,6 +131,7 @@ export function useInventory() {
       quantity: number;
       workerId?: string;
       sofaModelId?: string;
+      sofaDetails?: string; // NEW: stores multi-model production details
     }>,
     type: 'in' | 'out',
     notes: number = 0,
@@ -145,7 +146,7 @@ export function useInventory() {
     const newTransactions: StockTransaction[] = [];
     const materialUpdates: Record<string, number> = {};
 
-    items.forEach(({ materialId, quantity, workerId, sofaModelId }, index) => {
+    items.forEach(({ materialId, quantity, workerId, sofaModelId, sofaDetails }, index) => {
       const material = materials.find(m => m.id === materialId);
       if (!material) return;
 
@@ -165,6 +166,7 @@ export function useInventory() {
         workerName: worker?.name,
         sofaModelId,
         sofaModelName: sofaModel?.name,
+        sofaDetails, // NEW: Store the multi-model details string
       };
 
       newTransactions.push(transaction);
@@ -268,6 +270,7 @@ export function useInventory() {
       notes?: number;
       workerId?: string;
       sofaModelId?: string;
+      sofaDetails?: string; // NEW: allow editing sofa details
       date?: string | Date;
     }
   ) => {
