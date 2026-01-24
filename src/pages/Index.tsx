@@ -17,6 +17,7 @@ import { ReceiptsReport } from '@/components/inventory/ReceiptsReport';
 import { SalesForm } from '@/components/sales/SalesForm';
 import { CustomersPanel } from '@/components/sales/CustomersPanel';
 import SalesReport from '@/components/sales/SalesReport';
+import { SalesFinancialReport } from '@/components/sales/SalesFinancialReport';
 import { useState } from 'react';
 import { RawMaterial } from '@/types/inventory';
 
@@ -253,6 +254,92 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="sales" className="space-y-6">
+            {/* Financial Summary Cards */}
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-green-200 dark:border-green-800">
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-green-700 dark:text-green-300">Total Sales Revenue</CardDescription>
+                  <CardTitle className="text-3xl text-green-900 dark:text-green-100">
+                    ₱ {totalSalesRevenue.toLocaleString('en-PH', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950 dark:to-red-900 border-red-200 dark:border-red-800">
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-red-700 dark:text-red-300">Total Expenses</CardDescription>
+                  <CardTitle className="text-3xl text-red-900 dark:text-red-100">
+                    ₱ {totalExpenses.toLocaleString('en-PH', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}
+                  </CardTitle>
+                  <div className="text-xs text-red-600 dark:text-red-400 mt-2">
+                    <div>Stock In: ₱{stockInExpenses.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
+                    <div>Petty Cash: ₱{pettyCashExpenses.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                </CardHeader>
+              </Card>
+
+              <Card className={`bg-gradient-to-br border-2 ${
+                totalSalesRevenue - totalExpenses >= 0
+                  ? 'from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-300 dark:border-blue-700'
+                  : 'from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 border-orange-300 dark:border-orange-700'
+              }`}>
+                <CardHeader className="pb-2">
+                  <CardDescription className={
+                    totalSalesRevenue - totalExpenses >= 0
+                      ? 'text-blue-700 dark:text-blue-300'
+                      : 'text-orange-700 dark:text-orange-300'
+                  }>
+                    Net Income
+                  </CardDescription>
+                  <CardTitle className={`text-3xl ${
+                    totalSalesRevenue - totalExpenses >= 0
+                      ? 'text-blue-900 dark:text-blue-100'
+                      : 'text-orange-900 dark:text-orange-100'
+                  }`}>
+                    ₱ {(totalSalesRevenue - totalExpenses).toLocaleString('en-PH', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}
+                  </CardTitle>
+                  <div className={`text-xs mt-2 ${
+                    totalSalesRevenue - totalExpenses >= 0
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-orange-600 dark:text-orange-400'
+                  }`}>
+                    {totalSalesRevenue - totalExpenses >= 0 ? '📈 Profit' : '📉 Loss'}
+                  </div>
+                </CardHeader>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-purple-700 dark:text-purple-300">Profit Margin</CardDescription>
+                  <CardTitle className="text-3xl text-purple-900 dark:text-purple-100">
+                    {totalSalesRevenue > 0 
+                      ? ((totalSalesRevenue - totalExpenses) / totalSalesRevenue * 100).toFixed(1)
+                      : '0.0'
+                    }%
+                  </CardTitle>
+                  <div className="text-xs text-purple-600 dark:text-purple-400 mt-2">
+                    {totalSalesRevenue > 0
+                      ? ((totalSalesRevenue - totalExpenses) / totalSalesRevenue * 100) >= 20
+                        ? '✅ Healthy margin'
+                        : ((totalSalesRevenue - totalExpenses) / totalSalesRevenue * 100) >= 10
+                        ? '⚠️ Moderate margin'
+                        : '❌ Low margin'
+                      : 'No sales yet'
+                    }
+                  </div>
+                </CardHeader>
+              </Card>
+            </div>
+
             <div className="flex flex-wrap gap-3">
               <SalesForm
                 customers={customers}
@@ -274,6 +361,11 @@ const Index = () => {
                     });
                   });
                 }}
+              />
+              
+              <SalesFinancialReport
+                sales={sales}
+                receipts={receipts}
               />
             </div>
 
