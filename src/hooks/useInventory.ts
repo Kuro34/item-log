@@ -1,16 +1,18 @@
 // src/hooks/useInventory.ts
 import { useState, useEffect } from 'react';
-import { RawMaterial, StockTransaction, Employee, SofaModel, Receipt, ReceiptItem, PettyCashItem } from '@/types/inventory';
+import { RawMaterial, StockTransaction, Employee, SofaModel, Receipt, ReceiptItem, PettyCashItem, PayrollEntry } from '@/types/inventory';
 
 const MATERIALS_KEY = 'inventory_materials';
 const TRANSACTIONS_KEY = 'inventory_transactions';
 const WORKERS_KEY = 'inventory_workers';
 const SOFA_MODELS_KEY = 'inventory_sofa_models';
 const RECEIPTS_KEY = 'inventory_receipts';
+const PAYROLL_KEY = 'inventory_payroll';
 
 // Re-export types for backward compatibility
 export type { ReceiptItem, Receipt };
 export type { PettyCashItem };
+export type { PayrollEntry };
 
 export function useInventory() {
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
@@ -18,6 +20,7 @@ export function useInventory() {
   const [workers, setWorkers] = useState<Employee[]>([]);
   const [sofaModels, setSofaModels] = useState<SofaModel[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [payrollEntries, setPayrollEntries] = useState<PayrollEntry[]>([]);
 
   useEffect(() => {
     const savedMaterials   = localStorage.getItem(MATERIALS_KEY);
@@ -25,12 +28,14 @@ export function useInventory() {
     const savedWorkers     = localStorage.getItem(WORKERS_KEY);
     const savedSofaModels  = localStorage.getItem(SOFA_MODELS_KEY);
     const savedReceipts    = localStorage.getItem(RECEIPTS_KEY);
+    const savedPayroll     = localStorage.getItem(PAYROLL_KEY);
 
     if (savedMaterials)   setMaterials(JSON.parse(savedMaterials));
     if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
     if (savedWorkers)     setWorkers(JSON.parse(savedWorkers));
     if (savedSofaModels)  setSofaModels(JSON.parse(savedSofaModels));
     if (savedReceipts)    setReceipts(JSON.parse(savedReceipts));
+    if (savedPayroll)     setPayrollEntries(JSON.parse(savedPayroll));
   }, []);
 
   const saveMaterials = (newMaterials: RawMaterial[]) => {
@@ -56,6 +61,11 @@ export function useInventory() {
   const saveReceipts = (newReceipts: Receipt[]) => {
     setReceipts(newReceipts);
     localStorage.setItem(RECEIPTS_KEY, JSON.stringify(newReceipts));
+  };
+
+  const savePayroll = (newPayroll: PayrollEntry[]) => {
+    setPayrollEntries(newPayroll);
+    localStorage.setItem(PAYROLL_KEY, JSON.stringify(newPayroll));
   };
 
   // ──────────────────────────────────────────────
@@ -122,7 +132,7 @@ export function useInventory() {
   };
 
   // ──────────────────────────────────────────────
-  // Stock logging (batch support with sofaDetails)
+  // Stock logging (batch support)
   // ──────────────────────────────────────────────
 
   const logStock = (
@@ -131,7 +141,6 @@ export function useInventory() {
       quantity: number;
       workerId?: string;
       sofaModelId?: string;
-      sofaDetails?: string; // NEW: stores multi-model production details
     }>,
     type: 'in' | 'out',
     notes: number = 0,
@@ -146,7 +155,7 @@ export function useInventory() {
     const newTransactions: StockTransaction[] = [];
     const materialUpdates: Record<string, number> = {};
 
-    items.forEach(({ materialId, quantity, workerId, sofaModelId, sofaDetails }, index) => {
+    items.forEach(({ materialId, quantity, workerId, sofaModelId }, index) => {
       const material = materials.find(m => m.id === materialId);
       if (!material) return;
 
@@ -166,7 +175,6 @@ export function useInventory() {
         workerName: worker?.name,
         sofaModelId,
         sofaModelName: sofaModel?.name,
-        sofaDetails, // NEW: Store the multi-model details string
       };
 
       newTransactions.push(transaction);
@@ -270,7 +278,6 @@ export function useInventory() {
       notes?: number;
       workerId?: string;
       sofaModelId?: string;
-      sofaDetails?: string; // NEW: allow editing sofa details
       date?: string | Date;
     }
   ) => {
@@ -286,11 +293,9 @@ export function useInventory() {
       return;
     }
 
-    // Rollback old effect
     const oldDelta = tx.type === 'in' ? -tx.quantity : tx.quantity;
     let updatedQty = material.quantity + oldDelta;
 
-    // Apply new values
     const newType = newValues.type ?? tx.type;
     const newQuantity = newValues.quantity ?? tx.quantity;
     const newDelta = newType === 'in' ? newQuantity : -newQuantity;
@@ -316,12 +321,30 @@ export function useInventory() {
     saveTransactions(updatedTransactions);
   };
 
+  // ──────────────────────────────────────────────
+  // NEW: Payroll management
+  // ──────────────────────────────────────────────
+
+  const addPayroll = (payrollData: Omit<PayrollEntry, 'id' | 'createdAt'>) => {
+    const newPayroll: PayrollEntry = {
+      ...payrollData,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    savePayroll([...payrollEntries, newPayroll]);
+  };
+
+  const deletePayroll = (id: string) => {
+    savePayroll(payrollEntries.filter(p => p.id !== id));
+  };
+
   return {
     materials,
     transactions,
     workers,
     sofaModels,
     receipts,
+    payrollEntries,
     addMaterial,
     updateMaterial,
     deleteMaterial,
@@ -337,5 +360,7 @@ export function useInventory() {
     addReceipt,
     deleteReceipt,
     editTransaction,
+    addPayroll,
+    deletePayroll,
   };
 }

@@ -14,6 +14,7 @@ import { ReportsPanel } from '@/components/inventory/ReportsPanel';
 import { WorkersPanel } from '@/components/inventory/WorkersPanel';
 import { SofaModelsPanel } from '@/components/inventory/SofaModelsPanel';
 import { ReceiptsReport } from '@/components/inventory/ReceiptsReport';
+import { AddPayrollDialog, PayrollHistoryDialog } from '@/components/inventory/PayrollDialog';
 import { SalesForm } from '@/components/sales/SalesForm';
 import { CustomersPanel } from '@/components/sales/CustomersPanel';
 import SalesReport from '@/components/sales/SalesReport';
@@ -28,6 +29,7 @@ const Index = () => {
     workers,
     sofaModels,
     receipts,
+    payrollEntries,
     addMaterial, 
     updateMaterial, 
     deleteMaterial, 
@@ -40,6 +42,8 @@ const Index = () => {
     logStock,
     deleteTransactionWithRollback,
     editTransaction,
+    addPayroll,
+    deletePayroll,
   } = useInventory();
 
   const {
@@ -59,7 +63,7 @@ const Index = () => {
   const lowStockCount = materials.filter(m => m.quantity <= m.minStock).length;
   const totalValue = materials.reduce((sum, m) => sum + m.quantity * m.costPerUnit, 0);
   
-  // Calculate total expenses (Stock In + Petty Cash)
+  // Calculate total expenses (Stock In + Petty Cash + Payroll)
   const stockInExpenses = receipts
     .filter(r => r.type === 'in')
     .reduce((sum, r) => sum + r.grandTotal, 0);
@@ -68,7 +72,9 @@ const Index = () => {
     .filter(r => r.type === 'petty_cash')
     .reduce((sum, r) => sum + r.grandTotal, 0);
   
-  const totalExpenses = stockInExpenses + pettyCashExpenses;
+  const totalPayroll = payrollEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  
+  const totalExpenses = stockInExpenses + pettyCashExpenses + totalPayroll;
 
   // Calculate sales metrics
   const totalSalesRevenue = sales.reduce((sum, s) => sum + s.total, 0);
@@ -280,6 +286,7 @@ const Index = () => {
                   <div className="text-xs text-red-600 dark:text-red-400 mt-2">
                     <div>Stock In: ₱{stockInExpenses.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
                     <div>Petty Cash: ₱{pettyCashExpenses.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
+                    <div>Payroll: ₱{totalPayroll.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
                   </div>
                 </CardHeader>
               </Card>
@@ -361,6 +368,13 @@ const Index = () => {
                     });
                   });
                 }}
+              />
+              
+              <AddPayrollDialog onAdd={addPayroll} />
+              
+              <PayrollHistoryDialog 
+                payrollEntries={payrollEntries}
+                onDelete={deletePayroll}
               />
               
               <SalesFinancialReport
