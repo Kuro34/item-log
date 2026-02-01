@@ -144,12 +144,10 @@ export default function SalesReport({ sales, payments, onDelete, onAddPayment, o
             <thead>
               <tr>
                 <th>#</th>
-                <th>Type</th>
                 <th>Item</th>
                 <th class="text-right">Qty</th>
                 ${sale.items.some(i => i.type === 'material' && i.materialUnit?.toLowerCase() === 'roll') ? '<th class="text-right">Yards/Roll</th>' : ''}
                 <th class="text-right">Unit Price</th>
-                <th class="text-right">Discount</th>
                 <th class="text-right">Subtotal</th>
               </tr>
             </thead>
@@ -163,12 +161,10 @@ export default function SalesReport({ sales, payments, onDelete, onAddPayment, o
                 return `
                   <tr>
                     <td>${idx + 1}</td>
-                    <td><span class="badge ${item.type === 'sofa' ? 'badge-sofa' : 'badge-material'}">${item.type === 'sofa' ? 'Sofa' : 'Material'}</span></td>
                     <td>${itemName}${yardInfo}</td>
                     <td class="text-right">${item.quantity}</td>
                     ${hasYardsColumn ? `<td class="text-right">${isRoll && item.yardsPerUnit ? item.yardsPerUnit : '—'}</td>` : ''}
                     <td class="text-right">${formatCurrency(item.unitPrice)}</td>
-                    <td class="text-right">${item.discount}%</td>
                     <td class="text-right">${formatCurrency(item.subtotal)}</td>
                   </tr>
                 `;

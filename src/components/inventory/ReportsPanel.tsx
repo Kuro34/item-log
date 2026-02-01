@@ -193,7 +193,7 @@ export function ReportsPanel({
   const periodLabel = () => {
     switch (period) {
       case 'daily':
-        return format(periodStart, 'PPP');
+        return `${format(periodStart, 'EEEE')}, ${format(periodStart, 'PPP')}`;
       case 'weekly': {
         const wStart = getMonthWeekStart(periodStart);
         const wEnd = addDays(wStart, 6);
@@ -285,7 +285,7 @@ export function ReportsPanel({
           <tbody>
             ${stockIn.map(tx => `
               <tr>
-                <td>${format(new Date(tx.date), 'MMM dd, yyyy HH:mm')}</td>
+                <td>${format(new Date(tx.date), 'EEE, MMM dd, yyyy HH:mm')}</td>
                 <td>${tx.materialName}</td>
                 <td class="text-right">${tx.quantity}</td>
                 <td>${tx.workerName || '-'}</td>
@@ -333,7 +333,7 @@ export function ReportsPanel({
           <tbody>
             ${stockOut.map(tx => `
               <tr>
-                <td>${format(new Date(tx.date), 'MMM dd, yyyy HH:mm')}</td>
+                <td>${format(new Date(tx.date), 'EEE, MMM dd, yyyy HH:mm')}</td>
                 <td>${tx.materialName}</td>
                 <td class="text-right">${tx.quantity}</td>
                 <td>${tx.workerName || '-'}</td>
@@ -508,8 +508,8 @@ export function ReportsPanel({
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Material</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Material</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
                   <TableHead>Worker</TableHead>
                   <TableHead>Sofa Details</TableHead>
@@ -527,50 +527,59 @@ export function ReportsPanel({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredTransactions.map(tx => (
-                    <TableRow key={tx.id}>
-                      <TableCell className="whitespace-nowrap">
-                        {format(new Date(tx.date), 'MMM dd, yyyy HH:mm')}
-                      </TableCell>
-                      <TableCell className="font-medium">{tx.materialName}</TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          tx.type === 'in' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {tx.type === 'in' ? 'Stock In' : 'Stock Out'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right font-mono">{tx.quantity}</TableCell>
-                      <TableCell>{tx.workerName || '-'}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{tx.sofaDetails || tx.sofaModelName || '-'}</TableCell>
-                      <TableCell>{tx.notes || '-'}</TableCell>
-
-                      {period === 'daily' && (
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              onClick={(e) => handleEditTransaction(e, tx)}
-                              title="Edit transaction"
-                              type="button"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="destructive"
-                              onClick={(e) => handleDeleteTransaction(e, tx.id)}
-                              title="Delete transaction"
-                              type="button"
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
+                  filteredTransactions.map(tx => {
+                    const txDate = new Date(tx.date);
+                    const dayOfWeek = format(txDate, 'EEEE'); // Full day name
+                    const dateStr = format(txDate, 'MMM dd, yyyy HH:mm');
+                    
+                    return (
+                      <TableRow key={tx.id}>
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-blue-600">{dayOfWeek}</span>
+                            <span className="text-sm">{dateStr}</span>
                           </div>
                         </TableCell>
-                      )}
-                    </TableRow>
-                  ))
+                        <TableCell>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            tx.type === 'in' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {tx.type === 'in' ? 'Stock In' : 'Stock Out'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-medium">{tx.materialName}</TableCell>
+                        <TableCell className="text-right font-mono">{tx.quantity}</TableCell>
+                        <TableCell>{tx.workerName || '-'}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{tx.sofaDetails || tx.sofaModelName || '-'}</TableCell>
+                        <TableCell>{tx.notes || '-'}</TableCell>
+
+                        {period === 'daily' && (
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                onClick={(e) => handleEditTransaction(e, tx)}
+                                title="Edit transaction"
+                                type="button"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="destructive"
+                                onClick={(e) => handleDeleteTransaction(e, tx.id)}
+                                title="Delete transaction"
+                                type="button"
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

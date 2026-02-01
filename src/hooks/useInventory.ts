@@ -141,6 +141,7 @@ export function useInventory() {
       quantity: number;
       workerId?: string;
       sofaModelId?: string;
+      sofaDetails?: string; // ← Accept sofaDetails from the form
     }>,
     type: 'in' | 'out',
     notes: number = 0,
@@ -155,7 +156,7 @@ export function useInventory() {
     const newTransactions: StockTransaction[] = [];
     const materialUpdates: Record<string, number> = {};
 
-    items.forEach(({ materialId, quantity, workerId, sofaModelId }, index) => {
+    items.forEach(({ materialId, quantity, workerId, sofaModelId, sofaDetails }, index) => {
       const material = materials.find(m => m.id === materialId);
       if (!material) return;
 
@@ -175,6 +176,7 @@ export function useInventory() {
         workerName: worker?.name,
         sofaModelId,
         sofaModelName: sofaModel?.name,
+        sofaDetails, // ← Use the sofaDetails passed from the form
       };
 
       newTransactions.push(transaction);
@@ -301,6 +303,23 @@ export function useInventory() {
     const newDelta = newType === 'in' ? newQuantity : -newQuantity;
     updatedQty += newDelta;
 
+    // Update sofaDetails if sofaModelId or notes changed
+    let updatedSofaDetails = tx.sofaDetails;
+    if (newValues.sofaModelId !== undefined || newValues.notes !== undefined) {
+      const newSofaModelId = newValues.sofaModelId ?? tx.sofaModelId;
+      const newNotes = newValues.notes ?? tx.notes;
+      const sofaModel = newSofaModelId ? sofaModels.find(s => s.id === newSofaModelId) : undefined;
+      
+      if (sofaModel) {
+        updatedSofaDetails = sofaModel.name;
+        if (newNotes && newNotes > 0) {
+          updatedSofaDetails += ` (${newNotes} ${newNotes === 1 ? 'unit' : 'units'})`;
+        }
+      } else {
+        updatedSofaDetails = undefined;
+      }
+    }
+
     const updatedMaterials = materials.map(m =>
       m.id === material.id
         ? { ...m, quantity: Math.max(0, updatedQty), updatedAt: new Date().toISOString() }
@@ -312,6 +331,7 @@ export function useInventory() {
         ? {
             ...t,
             ...newValues,
+            sofaDetails: updatedSofaDetails,
             date: newValues.date ? new Date(newValues.date).toISOString() : t.date,
           }
         : t

@@ -249,8 +249,8 @@ export function TransactionsTable({
             <TableHeader>
               <TableRow>
                 <TableHead>Date & Time</TableHead>
-                <TableHead>Material</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Material</TableHead>
                 <TableHead className="text-right">Quantity</TableHead>
                 <TableHead>Worker</TableHead>
                 <TableHead>Sofa Details</TableHead>
@@ -277,12 +277,12 @@ export function TransactionsTable({
                         <span className="text-xs text-muted-foreground">{format(new Date(tx.date), 'HH:mm')}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">{tx.materialName}</TableCell>
                     <TableCell>
                       <Badge variant={tx.type === 'in' ? 'default' : 'secondary'}>
                         {tx.type === 'in' ? 'Stock In' : 'Stock Out'}
                       </Badge>
                     </TableCell>
+                    <TableCell className="font-medium">{tx.materialName}</TableCell>
                     <TableCell className="text-right font-mono">{tx.quantity}</TableCell>
                     <TableCell>{tx.workerName || '-'}</TableCell>
                     <TableCell className="max-w-[200px] truncate" title={tx.sofaModelName || '-'}>
