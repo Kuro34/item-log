@@ -17,10 +17,17 @@ export interface SaleItem {
   materialName?: string;
   materialUnit?: string;
   quantity: number;
-  yardsPerUnit?: number; // For roll materials
+  yardsPerUnit?: number;
   unitPrice: number;
-  discount: number; // percentage
+  discount: number;
   subtotal: number;
+}
+
+export interface SaleCommission {
+  agentId: string;
+  agentName: string;
+  percent: number;
+  amount: number;
 }
 
 export interface Sale {
@@ -30,10 +37,16 @@ export interface Sale {
   customerName: string;
   items: SaleItem[];
   subtotal: number;
-  discount: number; // total discount amount
-  tax: number; // percentage (e.g., VAT)
+  discount: number;
+  tax: number;
   taxAmount: number;
   total: number;
+
+  // ── NEW commission fields ──
+  commissions: SaleCommission[];
+  commissionAmount: number;
+  netTotal: number;
+
   paymentMethod: 'cash' | 'check' | 'bank_transfer' | 'installment';
   paymentStatus: 'paid' | 'partial' | 'unpaid';
   amountPaid: number;
@@ -56,4 +69,9 @@ export interface Payment {
   notes?: string;
   date: string;
   createdAt: string;
+}
+
+export interface Agent {
+  id: string;
+  name: string;
 }

@@ -1,5 +1,5 @@
 // src/components/sales/SalesForm.tsx
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,22 +8,29 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash, ShoppingCart } from 'lucide-react';
-import { Customer, SaleItem } from '@/types/sales';
+import { Customer, SaleItem, Agent } from '@/types/sales';     // ← make sure Agent is exported
 import { SofaModel, RawMaterial } from '@/types/inventory';
 
 interface SalesFormProps {
   customers: Customer[];
   sofaModels: SofaModel[];
   materials: RawMaterial[];
+  agents: Agent[];                    // ← added
   onSubmit: (saleData: any) => void;
 }
 
-export function SalesForm({ customers, sofaModels, materials, onSubmit }: SalesFormProps) {
+export function SalesForm({ 
+  customers, 
+  sofaModels, 
+  materials, 
+  agents, 
+  onSubmit 
+}: SalesFormProps) {
   const [open, setOpen] = useState(false);
   const [saleNumber, setSaleNumber] = useState(`SALE-${Date.now().toString().slice(-6)}`);
   const [customerId, setCustomerId] = useState('');
   const [items, setItems] = useState<SaleItem[]>([]);
-  const [taxRate, setTaxRate] = useState(12); // Default 12% VAT
+  const [taxRate, setTaxRate] = useState(12);
   const [discount, setDiscount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'check' | 'bank_transfer' | 'installment'>('cash');
   const [amountPaid, setAmountPaid] = useState(0);
@@ -31,6 +38,9 @@ export function SalesForm({ customers, sofaModels, materials, onSubmit }: SalesF
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
   const [saleDate, setSaleDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+
+  // ── NEW: Commissions state ──
+  const [commissions, setCommissions] = useState<Array<{ agentId: string; percent: number; agentName?: string }>>([]);
 
   const addItem = (type: 'sofa' | 'material' = 'sofa') => {
     setItems(prev => [...prev, {
@@ -54,40 +64,33 @@ export function SalesForm({ customers, sofaModels, materials, onSubmit }: SalesF
 
       let updated = { ...item, [field]: value };
 
-      // Update sofa model name when model is selected
       if (field === 'sofaModelId' && value) {
         const model = sofaModels.find(m => m.id === value as string);
-        if (model) {
-          updated.sofaModelName = model.name;
-        }
+        if (model) updated.sofaModelName = model.name;
       }
 
-      // Update material name and price when material is selected
       if (field === 'materialId' && value) {
         const material = materials.find(m => m.id === value as string);
         if (material) {
           updated.materialName = material.name;
           updated.materialUnit = material.unit;
           updated.unitPrice = material.costPerUnit || 0;
-          // Clear yards if not a roll
           if (material.unit?.toLowerCase() !== 'roll') {
             updated.yardsPerUnit = undefined;
           }
         }
       }
 
-      // Recalculate subtotal
       const qty = Number(updated.quantity) || 0;
       const price = Number(updated.unitPrice) || 0;
       const disc = Number(updated.discount) || 0;
-      
-      // For roll materials, multiply by yards per unit
+
       let finalQty = qty;
       if (updated.type === 'material' && updated.materialUnit?.toLowerCase() === 'roll') {
         const yards = Number(updated.yardsPerUnit) || 1;
         finalQty = qty * yards;
       }
-      
+
       updated.subtotal = finalQty * price * (1 - disc / 100);
 
       return updated;
@@ -98,14 +101,44 @@ export function SalesForm({ customers, sofaModels, materials, onSubmit }: SalesF
     setItems(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Calculate totals
+  // ── NEW: Commission handlers ──
+  const addCommission = () => {
+    setCommissions(prev => [...prev, { agentId: '', percent: 0 }]);
+  };
+
+  const updateCommission = (index: number, field: 'agentId' | 'percent', value: string | number) => {
+    setCommissions(prev => prev.map((comm, i) => {
+      if (i !== index) return comm;
+      const updated = { ...comm, [field]: value };
+
+      if (field === 'agentId' && value) {
+        const agent = agents.find(a => a.id === value);
+        if (agent) updated.agentName = agent.name;
+      }
+
+      return updated;
+    }));
+  };
+
+  const removeCommission = (index: number) => {
+    setCommissions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Calculations
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
   const discountAmount = (subtotal * discount) / 100;
   const taxableAmount = subtotal - discountAmount;
   const taxAmount = (taxableAmount * taxRate) / 100;
   const total = taxableAmount + taxAmount;
-  const balance = total - amountPaid;
 
+  // ── NEW calculations ──
+  const totalCommission = commissions.reduce(
+    (sum, c) => sum + (total * (Number(c.percent) || 0) / 100),
+    0
+  );
+  const netTotal = total - totalCommission;
+
+  const balance = total - amountPaid;
   const paymentStatus = amountPaid >= total ? 'paid' : amountPaid > 0 ? 'partial' : 'unpaid';
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -120,17 +153,24 @@ export function SalesForm({ customers, sofaModels, materials, onSubmit }: SalesF
     if (!customer) return;
 
     const validItems = items.filter(item => {
-      if (item.type === 'sofa') {
-        return item.sofaModelId && item.quantity > 0;
-      } else {
-        return item.materialId && item.quantity > 0;
-      }
+      if (item.type === 'sofa') return item.sofaModelId && item.quantity > 0;
+      return item.materialId && item.quantity > 0;
     });
 
     if (validItems.length === 0) {
       alert('Please add valid items with selection and quantity > 0');
       return;
     }
+
+    // Filter only valid commissions
+    const validCommissions = commissions
+      .filter(c => c.agentId && c.percent > 0)
+      .map(c => ({
+        agentId: c.agentId,
+        agentName: c.agentName!,
+        percent: c.percent,
+        amount: total * (c.percent / 100),
+      }));
 
     onSubmit({
       saleNumber,
@@ -142,6 +182,10 @@ export function SalesForm({ customers, sofaModels, materials, onSubmit }: SalesF
       tax: taxRate,
       taxAmount,
       total,
+      // ── NEW fields added to submission ──
+      commissions: validCommissions,
+      commissionAmount: totalCommission,
+      netTotal,
       paymentMethod,
       paymentStatus,
       amountPaid,
@@ -163,9 +207,10 @@ export function SalesForm({ customers, sofaModels, materials, onSubmit }: SalesF
     setDeliveryAddress('');
     setDeliveryDate('');
     setSaleDate(format(new Date(), 'yyyy-MM-dd'));
+    setCommissions([]);                    // reset commissions too
   };
 
-  const formatCurrency = (value: number) => 
+  const formatCurrency = (value: number) =>
     `₱ ${value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
@@ -210,7 +255,7 @@ export function SalesForm({ customers, sofaModels, materials, onSubmit }: SalesF
             </div>
           </div>
 
-          {/* Items Section */}
+          {/* Items Section – unchanged */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label className="text-base font-semibold">Sale Items</Label>
@@ -233,7 +278,7 @@ export function SalesForm({ customers, sofaModels, materials, onSubmit }: SalesF
 
               {items.map((item, index) => {
                 const isRoll = item.type === 'material' && item.materialUnit?.toLowerCase() === 'roll';
-                
+
                 return (
                   <div key={index} className="grid grid-cols-12 gap-3 items-end bg-white p-3 rounded border">
                     <div className="col-span-1 space-y-1">
@@ -347,7 +392,76 @@ export function SalesForm({ customers, sofaModels, materials, onSubmit }: SalesF
             </div>
           </div>
 
-          {/* Pricing Summary */}
+          {/* ── NEW: Agents / Commissions Section ── */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold">Sales Agents / Commissions</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addCommission}>
+                <Plus className="h-4 w-4 mr-2" /> Add Agent
+              </Button>
+            </div>
+
+            <div className="space-y-3 max-h-[30vh] overflow-y-auto border rounded-md p-3 bg-muted/20">
+              {commissions.length === 0 && (
+                <p className="text-center text-muted-foreground py-8 text-sm">
+                  No agents added — click "Add Agent" to assign commission
+                </p>
+              )}
+
+              {commissions.map((comm, index) => (
+                <div key={index} className="grid grid-cols-12 gap-3 items-end bg-white p-3 rounded border">
+                  <div className="col-span-6 space-y-1">
+                    <Label className="text-xs">Agent *</Label>
+                    <Select
+                      value={comm.agentId}
+                      onValueChange={v => updateCommission(index, 'agentId', v)}
+                    >
+                      <SelectTrigger className="text-sm">
+                        <SelectValue placeholder="Select agent" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {agents.map(agent => (
+                          <SelectItem key={agent.id} value={agent.id}>
+                            {agent.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="col-span-4 space-y-1">
+                    <Label className="text-xs">Commission %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={comm.percent || ''}
+                      onChange={e => updateCommission(index, 'percent', Number(e.target.value) || 0)}
+                      className="text-sm"
+                    />
+                  </div>
+
+                  <div className="col-span-2 flex items-end justify-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeCommission(index)}
+                    >
+                      <Trash className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+
+                  <div className="col-span-12 text-right text-sm font-medium">
+                    Commission: {formatCurrency(total * (comm.percent || 0) / 100)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pricing Summary – updated with commission */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="space-y-2">
@@ -394,7 +508,6 @@ export function SalesForm({ customers, sofaModels, materials, onSubmit }: SalesF
                   type="number"
                   step="0.01"
                   min="0"
-                  max={total}
                   value={amountPaid}
                   onChange={e => setAmountPaid(Number(e.target.value))}
                 />
@@ -419,6 +532,17 @@ export function SalesForm({ customers, sofaModels, materials, onSubmit }: SalesF
                 <span>Total:</span>
                 <span className="text-blue-600">{formatCurrency(total)}</span>
               </div>
+
+              {/* NEW */}
+              <div className="flex justify-between text-sm">
+                <span>Total Commission:</span>
+                <span className="font-medium text-red-600">-{formatCurrency(totalCommission)}</span>
+              </div>
+              <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2">
+                <span>Net Total:</span>
+                <span className="text-blue-600">{formatCurrency(netTotal)}</span>
+              </div>
+
               <div className="flex justify-between text-sm">
                 <span>Amount Paid:</span>
                 <span className="font-medium text-green-600">{formatCurrency(amountPaid)}</span>
