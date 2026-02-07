@@ -388,6 +388,46 @@ export function SalesFinancialReport({ sales, receipts }: SalesFinancialReportPr
               </div>
             </div>
           </div>
+          
+          <!-- NEW: Agent Commissions Breakdown -->
+          <div class="section">
+            <h3 class="section-title">Sales Agents Commission Breakdown</h3>
+            
+            ${agentCommissions.size === 0 ? '<p style="text-align: center; color: #94a3b8; padding: 20px;">No agent commissions recorded in this period</p>' : `
+              <table>
+                <thead>
+                  <tr>
+                    <th>Agent Name</th>
+                    <th class="text-right">Total Commission</th>
+                    <th>Sales References</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${Array.from(agentCommissions.values()).map(agent => `
+                    <tr>
+                      <td><strong>${agent.name}</strong></td>
+                      <td class="text-right"><strong>${formatCurrency(agent.totalCommission)}</strong></td>
+                      <td>
+                        ${agent.sales.map(s => `
+                          <div style="margin: 3px 0; font-size: 8pt;">
+                            ${s.saleNumber}: ${formatCurrency(s.amount)}
+                          </div>
+                        `).join('')}
+                      </td>
+                    </tr>
+                  `).join('')}
+                  <tr style="border-top: 2px solid #333; font-weight: bold;">
+                    <td colspan="3">
+                      <div style="display: flex; justify-content: space-between;">
+                        <span>TOTAL COMMISSIONS:</span>
+                        <span>${formatCurrency(totalCommissions)}</span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            `}
+          </div>
 
           <!-- Sales Transactions -->
           <div class="section">
@@ -429,45 +469,7 @@ export function SalesFinancialReport({ sales, receipts }: SalesFinancialReportPr
             `}
           </div>
 
-          <!-- NEW: Agent Commissions Breakdown -->
-          <div class="section">
-            <h3 class="section-title">Sales Agents Commission Breakdown</h3>
-            
-            ${agentCommissions.size === 0 ? '<p style="text-align: center; color: #94a3b8; padding: 20px;">No agent commissions recorded in this period</p>' : `
-              <table>
-                <thead>
-                  <tr>
-                    <th>Agent Name</th>
-                    <th class="text-right">Total Commission</th>
-                    <th>Sales References</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${Array.from(agentCommissions.values()).map(agent => `
-                    <tr>
-                      <td><strong>${agent.name}</strong></td>
-                      <td class="text-right"><strong>${formatCurrency(agent.totalCommission)}</strong></td>
-                      <td>
-                        ${agent.sales.map(s => `
-                          <div style="margin: 3px 0; font-size: 8pt;">
-                            ${s.saleNumber}: ${formatCurrency(s.amount)}
-                          </div>
-                        `).join('')}
-                      </td>
-                    </tr>
-                  `).join('')}
-                  <tr style="border-top: 2px solid #333; font-weight: bold;">
-                    <td colspan="3">
-                      <div style="display: flex; justify-content: space-between;">
-                        <span>TOTAL COMMISSIONS:</span>
-                        <span>${formatCurrency(totalCommissions)}</span>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            `}
-          </div>
+          
 
           <!-- Expense Receipts -->
           <div class="section">
