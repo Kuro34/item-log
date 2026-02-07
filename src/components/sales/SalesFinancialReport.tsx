@@ -126,6 +126,26 @@ export function SalesFinancialReport({ sales, receipts }: SalesFinancialReportPr
     const netIncome = revenueAfterCommissions - totalExpenses;
     const profitMargin = totalSalesRevenue > 0 ? (netIncome / totalSalesRevenue) * 100 : 0;
 
+    // NEW: Build agent commissions breakdown
+    const agentCommissions = new Map<string, { name: string; totalCommission: number; sales: Array<{ saleNumber: string; amount: number }> }>();
+    
+    filteredSales.forEach(sale => {
+      if (sale.commissions && sale.commissions.length > 0) {
+        sale.commissions.forEach(comm => {
+          if (!agentCommissions.has(comm.agentId)) {
+            agentCommissions.set(comm.agentId, {
+              name: comm.agentName,
+              totalCommission: 0,
+              sales: []
+            });
+          }
+          const agent = agentCommissions.get(comm.agentId)!;
+          agent.totalCommission += comm.amount;
+          agent.sales.push({ saleNumber: sale.saleNumber, amount: comm.amount });
+        });
+      }
+    });
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -404,6 +424,46 @@ export function SalesFinancialReport({ sales, receipts }: SalesFinancialReportPr
                       </td>
                     </tr>
                   `).join('')}
+                </tbody>
+              </table>
+            `}
+          </div>
+
+          <!-- NEW: Agent Commissions Breakdown -->
+          <div class="section">
+            <h3 class="section-title">Sales Agents Commission Breakdown</h3>
+            
+            ${agentCommissions.size === 0 ? '<p style="text-align: center; color: #94a3b8; padding: 20px;">No agent commissions recorded in this period</p>' : `
+              <table>
+                <thead>
+                  <tr>
+                    <th>Agent Name</th>
+                    <th class="text-right">Total Commission</th>
+                    <th>Sales References</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${Array.from(agentCommissions.values()).map(agent => `
+                    <tr>
+                      <td><strong>${agent.name}</strong></td>
+                      <td class="text-right"><strong>${formatCurrency(agent.totalCommission)}</strong></td>
+                      <td>
+                        ${agent.sales.map(s => `
+                          <div style="margin: 3px 0; font-size: 8pt;">
+                            ${s.saleNumber}: ${formatCurrency(s.amount)}
+                          </div>
+                        `).join('')}
+                      </td>
+                    </tr>
+                  `).join('')}
+                  <tr style="border-top: 2px solid #333; font-weight: bold;">
+                    <td colspan="3">
+                      <div style="display: flex; justify-content: space-between;">
+                        <span>TOTAL COMMISSIONS:</span>
+                        <span>${formatCurrency(totalCommissions)}</span>
+                      </div>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             `}
