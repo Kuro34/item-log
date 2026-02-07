@@ -17,6 +17,7 @@ import { ReceiptsReport } from '@/components/inventory/ReceiptsReport';
 import { AddPayrollDialog, PayrollHistoryDialog } from '@/components/inventory/PayrollDialog';
 import { SalesForm } from '@/components/sales/SalesForm';
 import { CustomersPanel } from '@/components/sales/CustomersPanel';
+import { AgentsPanel } from '@/components/sales/AgentsPanel'; // ← NEW import
 import SalesReport from '@/components/sales/SalesReport';
 import { SalesFinancialReport } from '@/components/sales/SalesFinancialReport';
 import { useState } from 'react';
@@ -50,6 +51,7 @@ const Index = () => {
     customers,
     sales,
     payments,
+    agents,                // ← now destructured
     addCustomer,
     updateCustomer,
     deleteCustomer,
@@ -58,6 +60,9 @@ const Index = () => {
     deleteSale,
     addPayment,
     deletePayment,
+    addAgent,              // ← new
+    updateAgent,           // ← new
+    deleteAgent,           // ← new
   } = useSales();
 
   const lowStockCount = materials.filter(m => m.quantity <= m.minStock).length;
@@ -352,10 +357,9 @@ const Index = () => {
                 customers={customers}
                 sofaModels={sofaModels}
                 materials={materials}
+                agents={agents}                                 // ← NOW USING REAL AGENTS
                 onSubmit={(saleData) => {
-                  // Add sale and handle material inventory reduction
                   addSale(saleData, (materialUpdates) => {
-                    // Update material quantities
                     materialUpdates.forEach(({ id, quantityChange }) => {
                       const material = materials.find(m => m.id === id);
                       if (material) {
@@ -408,12 +412,21 @@ const Index = () => {
               />
             </div>
 
-            <CustomersPanel
-              customers={customers}
-              onAdd={addCustomer}
-              onUpdate={updateCustomer}
-              onDelete={deleteCustomer}
-            />
+            <div className="grid gap-6 md:grid-cols-2">
+              <CustomersPanel
+                customers={customers}
+                onAdd={addCustomer}
+                onUpdate={updateCustomer}
+                onDelete={deleteCustomer}
+              />
+
+              <AgentsPanel
+                agents={agents}
+                onAdd={addAgent}
+                onUpdate={updateAgent}
+                onDelete={deleteAgent}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </main>

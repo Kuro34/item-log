@@ -108,6 +108,9 @@ export function SalesFinancialReport({ sales, receipts }: SalesFinancialReportPr
     const totalReceived = filteredSales.reduce((sum, s) => sum + s.amountPaid, 0);
     const totalOutstanding = filteredSales.reduce((sum, s) => sum + s.balance, 0);
 
+    // NEW: Calculate total commissions
+    const totalCommissions = filteredSales.reduce((sum, s) => sum + (s.commissionAmount || 0), 0);
+
     const stockInExpenses = filteredReceipts
       .filter(r => r.type === 'in')
       .reduce((sum, r) => sum + r.grandTotal, 0);
@@ -117,7 +120,10 @@ export function SalesFinancialReport({ sales, receipts }: SalesFinancialReportPr
       .reduce((sum, r) => sum + r.grandTotal, 0);
 
     const totalExpenses = stockInExpenses + pettyCashExpenses;
-    const netIncome = totalSalesRevenue - totalExpenses;
+    
+    // NEW: Net income after commissions
+    const revenueAfterCommissions = totalSalesRevenue - totalCommissions;
+    const netIncome = revenueAfterCommissions - totalExpenses;
     const profitMargin = totalSalesRevenue > 0 ? (netIncome / totalSalesRevenue) * 100 : 0;
 
     const printWindow = window.open('', '_blank');
@@ -322,6 +328,22 @@ export function SalesFinancialReport({ sales, receipts }: SalesFinancialReportPr
             </div>
 
             <div class="metric-card expense">
+              <div class="metric-label">Total Commissions</div>
+              <div class="metric-value">${formatCurrency(totalCommissions)}</div>
+              <div class="metric-detail">
+                Paid to sales agents
+              </div>
+            </div>
+
+            <div class="metric-card revenue">
+              <div class="metric-label">Revenue After Commissions</div>
+              <div class="metric-value">${formatCurrency(revenueAfterCommissions)}</div>
+              <div class="metric-detail">
+                Sales - Commissions
+              </div>
+            </div>
+
+            <div class="metric-card expense">
               <div class="metric-label">Total Expenses</div>
               <div class="metric-value">${formatCurrency(totalExpenses)}</div>
               <div class="metric-detail">
@@ -359,6 +381,7 @@ export function SalesFinancialReport({ sales, receipts }: SalesFinancialReportPr
                     <th>Sale #</th>
                     <th>Customer</th>
                     <th class="text-right">Total</th>
+                    <th class="text-right">Commission</th>
                     <th class="text-right">Paid</th>
                     <th class="text-right">Balance</th>
                     <th class="text-center">Status</th>
@@ -371,6 +394,7 @@ export function SalesFinancialReport({ sales, receipts }: SalesFinancialReportPr
                       <td>${sale.saleNumber}</td>
                       <td>${sale.customerName}</td>
                       <td class="text-right">${formatCurrency(sale.total)}</td>
+                      <td class="text-right">${sale.commissionAmount ? formatCurrency(sale.commissionAmount) : '-'}</td>
                       <td class="text-right">${formatCurrency(sale.amountPaid)}</td>
                       <td class="text-right">${formatCurrency(sale.balance)}</td>
                       <td class="text-center">

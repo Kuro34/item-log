@@ -74,4 +74,7 @@ export interface Payment {
 export interface Agent {
   id: string;
   name: string;
+  contactNumber?: string;
+  email?: string;
+  createdAt: string;
 }

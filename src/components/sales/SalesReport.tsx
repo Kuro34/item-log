@@ -189,6 +189,21 @@ export default function SalesReport({ sales, payments, onDelete, onAddPayment, o
               <strong>TOTAL:</strong>
               <strong>${formatCurrency(sale.total)}</strong>
             </div>
+            ${sale.commissions && sale.commissions.length > 0 ? `
+              <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+                <strong>Sales Commissions:</strong>
+                ${sale.commissions.map(comm => `
+                  <div class="info-row" style="margin-left: 15px;">
+                    <span>${comm.agentName} (${comm.percent}%):</span>
+                    <span>-${formatCurrency(comm.amount)}</span>
+                  </div>
+                `).join('')}
+                <div class="info-row" style="border-top: 1px solid #ddd; margin-top: 8px; padding-top: 8px; font-size: 12pt; font-weight: bold; color: #0066cc;">
+                  <span>NET TOTAL (after commission):</span>
+                  <span>${formatCurrency(sale.netTotal)}</span>
+                </div>
+              </div>
+            ` : ''}
             <div class="info-row">
               <span>Amount Paid:</span>
               <span style="color: green;">${formatCurrency(sale.amountPaid)}</span>
@@ -395,7 +410,27 @@ export default function SalesReport({ sales, payments, onDelete, onAddPayment, o
                                   <span>Total:</span>
                                   <span>{formatCurrency(selectedSale.total)}</span>
                                 </div>
-                                <div className="flex justify-between text-green-600">
+
+                                {/* NEW: Commission section */}
+                                {selectedSale.commissions && selectedSale.commissions.length > 0 && (
+                                  <>
+                                    <div className="border-t pt-2 mt-2">
+                                      <h4 className="font-semibold text-sm mb-2">Sales Commissions</h4>
+                                      {selectedSale.commissions.map((comm, idx) => (
+                                        <div key={idx} className="flex justify-between text-sm ml-2">
+                                          <span>{comm.agentName} ({comm.percent}%):</span>
+                                          <span className="text-red-600">-{formatCurrency(comm.amount)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div className="flex justify-between text-lg font-bold border-t pt-2 text-blue-600">
+                                      <span>Net Total (after commission):</span>
+                                      <span>{formatCurrency(selectedSale.netTotal)}</span>
+                                    </div>
+                                  </>
+                                )}
+
+                                <div className="flex justify-between text-green-600 border-t pt-2">
                                   <span>Amount Paid:</span>
                                   <span>{formatCurrency(selectedSale.amountPaid)}</span>
                                 </div>
