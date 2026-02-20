@@ -30,7 +30,7 @@ export function SalesForm({
   const [saleNumber, setSaleNumber] = useState(`SALE-${Date.now().toString().slice(-6)}`);
   const [customerId, setCustomerId] = useState('');
   const [items, setItems] = useState<SaleItem[]>([]);
-  const [taxRate, setTaxRate] = useState(12);
+  const [taxRate, setTaxRate] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'check' | 'bank_transfer' | 'installment'>('cash');
   const [amountPaid, setAmountPaid] = useState(0);
